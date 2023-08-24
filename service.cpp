@@ -31,6 +31,8 @@
 #include "C2FFMPEGCommon.h"
 #include "C2FFMPEGAudioDecodeComponent.h"
 #include "C2FFMPEGAudioDecodeInterface.h"
+#include "C2FFMPEGVideoEncodeComponent.h"
+#include "C2FFMPEGVideoEncodeInterface.h"
 #include "C2FFMPEGVideoDecodeComponent.h"
 #include "C2FFMPEGVideoDecodeInterface.h"
 
@@ -49,27 +51,28 @@ static constexpr char kExtSeccompPolicyPath[] =
         "android.hardware.media.c2@1.2-ffmpeg-extended.policy";
 
 static const C2FFMPEGComponentInfo kFFMPEGVideoComponents[] = {
-    { "c2.ffmpeg.av1.decoder"   , MEDIA_MIMETYPE_VIDEO_AV1   , AV_CODEC_ID_AV1        },
-    { "c2.ffmpeg.h263.decoder"  , MEDIA_MIMETYPE_VIDEO_H263  , AV_CODEC_ID_H263       },
-    { "c2.ffmpeg.h264.decoder"  , MEDIA_MIMETYPE_VIDEO_AVC   , AV_CODEC_ID_H264       },
-    { "c2.ffmpeg.hevc.decoder"  , MEDIA_MIMETYPE_VIDEO_HEVC  , AV_CODEC_ID_HEVC       },
-    { "c2.ffmpeg.mpeg2.decoder" , MEDIA_MIMETYPE_VIDEO_MPEG2 , AV_CODEC_ID_MPEG2VIDEO },
-    { "c2.ffmpeg.mpeg4.decoder" , MEDIA_MIMETYPE_VIDEO_MPEG4 , AV_CODEC_ID_MPEG4      },
-    { "c2.ffmpeg.vp8.decoder"   , MEDIA_MIMETYPE_VIDEO_VP8   , AV_CODEC_ID_VP8        },
-    { "c2.ffmpeg.vp9.decoder"   , MEDIA_MIMETYPE_VIDEO_VP9   , AV_CODEC_ID_VP9        },
+    { "c2.ffmpeg.av1.decoder"   , MEDIA_MIMETYPE_VIDEO_AV1   , AV_CODEC_ID_AV1        , C2Component::KIND_DECODER },
+    { "c2.ffmpeg.h263.decoder"  , MEDIA_MIMETYPE_VIDEO_H263  , AV_CODEC_ID_H263       , C2Component::KIND_DECODER },
+    { "c2.ffmpeg.h264.encoder"  , MEDIA_MIMETYPE_VIDEO_AVC   , AV_CODEC_ID_H264       , C2Component::KIND_ENCODER },
+    { "c2.ffmpeg.h264.decoder"  , MEDIA_MIMETYPE_VIDEO_AVC   , AV_CODEC_ID_H264       , C2Component::KIND_DECODER },
+    { "c2.ffmpeg.hevc.decoder"  , MEDIA_MIMETYPE_VIDEO_HEVC  , AV_CODEC_ID_HEVC       , C2Component::KIND_DECODER },
+    { "c2.ffmpeg.mpeg2.decoder" , MEDIA_MIMETYPE_VIDEO_MPEG2 , AV_CODEC_ID_MPEG2VIDEO , C2Component::KIND_DECODER },
+    { "c2.ffmpeg.mpeg4.decoder" , MEDIA_MIMETYPE_VIDEO_MPEG4 , AV_CODEC_ID_MPEG4      , C2Component::KIND_DECODER },
+    { "c2.ffmpeg.vp8.decoder"   , MEDIA_MIMETYPE_VIDEO_VP8   , AV_CODEC_ID_VP8        , C2Component::KIND_DECODER },
+    { "c2.ffmpeg.vp9.decoder"   , MEDIA_MIMETYPE_VIDEO_VP9   , AV_CODEC_ID_VP9        , C2Component::KIND_DECODER },
 };
 
 static const size_t kNumVideoComponents =
     (sizeof(kFFMPEGVideoComponents) / sizeof(kFFMPEGVideoComponents[0]));
 
 static const C2FFMPEGComponentInfo kFFMPEGAudioComponents[] = {
-    { "c2.ffmpeg.aac.decoder"   , MEDIA_MIMETYPE_AUDIO_AAC          , AV_CODEC_ID_AAC    },
-    { "c2.ffmpeg.ac3.decoder"   , MEDIA_MIMETYPE_AUDIO_AC3          , AV_CODEC_ID_AC3    },
-    { "c2.ffmpeg.alac.decoder"  , MEDIA_MIMETYPE_AUDIO_ALAC         , AV_CODEC_ID_ALAC   },
-    { "c2.ffmpeg.flac.decoder"  , MEDIA_MIMETYPE_AUDIO_FLAC         , AV_CODEC_ID_FLAC   },
-    { "c2.ffmpeg.mp2.decoder"   , MEDIA_MIMETYPE_AUDIO_MPEG_LAYER_II, AV_CODEC_ID_MP2    },
-    { "c2.ffmpeg.mp3.decoder"   , MEDIA_MIMETYPE_AUDIO_MPEG         , AV_CODEC_ID_MP3    },
-    { "c2.ffmpeg.vorbis.decoder", MEDIA_MIMETYPE_AUDIO_VORBIS       , AV_CODEC_ID_VORBIS },
+    { "c2.ffmpeg.aac.decoder"   , MEDIA_MIMETYPE_AUDIO_AAC          , AV_CODEC_ID_AAC    , C2Component::KIND_DECODER },
+    { "c2.ffmpeg.ac3.decoder"   , MEDIA_MIMETYPE_AUDIO_AC3          , AV_CODEC_ID_AC3    , C2Component::KIND_DECODER },
+    { "c2.ffmpeg.alac.decoder"  , MEDIA_MIMETYPE_AUDIO_ALAC         , AV_CODEC_ID_ALAC   , C2Component::KIND_DECODER },
+    { "c2.ffmpeg.flac.decoder"  , MEDIA_MIMETYPE_AUDIO_FLAC         , AV_CODEC_ID_FLAC   , C2Component::KIND_DECODER },
+    { "c2.ffmpeg.mp2.decoder"   , MEDIA_MIMETYPE_AUDIO_MPEG_LAYER_II, AV_CODEC_ID_MP2    , C2Component::KIND_DECODER },
+    { "c2.ffmpeg.mp3.decoder"   , MEDIA_MIMETYPE_AUDIO_MPEG         , AV_CODEC_ID_MP3    , C2Component::KIND_DECODER },
+    { "c2.ffmpeg.vorbis.decoder", MEDIA_MIMETYPE_AUDIO_VORBIS       , AV_CODEC_ID_VORBIS , C2Component::KIND_DECODER },
 };
 
 static const size_t kNumAudioComponents =
@@ -106,9 +109,15 @@ public:
             auto info = &kFFMPEGVideoComponents[i];
             if (name == info->name) {
                 component->reset();
-                *component = std::shared_ptr<C2Component>(
-                        new C2FFMPEGVideoDecodeComponent(
-                                info, std::make_shared<C2FFMPEGVideoDecodeInterface>(info, mReflectorHelper)));
+                if (info->kind == C2Component::KIND_ENCODER) {
+                    *component = std::shared_ptr<C2Component>(
+                            new C2FFMPEGVideoEncodeComponent(
+                                    info, std::make_shared<C2FFMPEGVideoEncodeInterface>(info, mReflectorHelper)));
+                } else if (info->kind == C2Component::KIND_ENCODER) {
+                    *component = std::shared_ptr<C2Component>(
+                            new C2FFMPEGVideoDecodeComponent(
+                                    info, std::make_shared<C2FFMPEGVideoDecodeInterface>(info, mReflectorHelper)));
+                }
                 return C2_OK;
             }
         }

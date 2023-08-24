@@ -26,6 +26,7 @@ typedef struct {
     const char* name;
     const char* mediaType;
     enum AVCodecID codecID;
+    uint32_t kind;
 } C2FFMPEGComponentInfo;
 
 } // namespace android

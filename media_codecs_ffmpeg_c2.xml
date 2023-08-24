@@ -103,4 +103,17 @@
             <Feature name="adaptive-playback" />
         </MediaCodec>
     </Decoders>
+    <Encoders>
+        <!-- video codecs -->
+        <MediaCodec name="c2.ffmpeg.h264.encoder"   type="video/avc">
+            <Alias name="OMX.ffmpeg.h264.encoder" />
+            <Limit name="size" min="32x32" max="4096x4096" />
+            <Limit name="alignment" value="2x2" />
+            <Limit name="block-size" value="16x16" />
+            <Limit name="blocks-per-second" range="1-983040" />
+            <Limit name="bitrate" range="1-40000000" />
+            <Limit name="concurrent-instances" max="8" />
+            <Limit name="performance-point-1280x720" range="30-30" />
+        </MediaCodec>
+    </Encoders>
 </MediaCodecs>

@@ -33,6 +33,8 @@ LOCAL_REQUIRED_MODULES := \
 LOCAL_SRC_FILES := \
     C2FFMPEGAudioDecodeComponent.cpp \
     C2FFMPEGAudioDecodeInterface.cpp \
+    C2FFMPEGVideoEncodeComponent.cpp \
+    C2FFMPEGVideoEncodeInterface.cpp \
     C2FFMPEGVideoDecodeComponent.cpp \
     C2FFMPEGVideoDecodeInterface.cpp \
     service.cpp
